@@ -17,15 +17,16 @@ def run(cmd, cwd=None, env=None):
 def build_module():
     env = dict(os.environ)
     env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
-    run(["cargo", "build", "--features", "python", "--lib"], cwd=CRATE, env=env)
+    run(
+        ["cargo", "build", "--release", "--features", "python", "--lib"],
+        cwd=CRATE,
+        env=env,
+    )
 
 
 def find_built_dll():
-    for base in (CRATE / "target" / "debug", CRATE / "target" / "release"):
-        dll = base / "pxc.dll"
-        if dll.exists():
-            return dll
-    return None
+    dll = CRATE / "target" / "release" / "pxc.dll"
+    return dll if dll.exists() else None
 
 
 def install():

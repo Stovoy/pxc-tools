@@ -1,3 +1,7 @@
+// PyO3's macro-generated shims trigger Rust 2024 unsafe_op_in_unsafe_fn warnings.
+// Scope the allow to this bindings module only (not the whole crate).
+#![allow(unsafe_op_in_unsafe_fn)]
+
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -23,8 +27,8 @@ fn py_err<E: std::fmt::Display>(err: E) -> PyErr {
     PyRuntimeError::new_err(err.to_string())
 }
 
-fn py_any_to_value(py: Python<'_>, value: &PyAny) -> PyResult<Value> {
-    let json_mod = py.import("json")?;
+fn py_any_to_value(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<Value> {
+    let json_mod = py.import_bound("json")?;
     let dumped = json_mod.call_method1("dumps", (value,))?;
     let s: String = dumped.extract()?;
     serde_json::from_str(&s).map_err(py_err)
@@ -191,7 +195,7 @@ impl Project {
     }
 
     #[pyo3(signature = (pointer, value))]
-    fn set_value(&mut self, py: Python<'_>, pointer: &str, value: &PyAny) -> PyResult<()> {
+    fn set_value(&mut self, py: Python<'_>, pointer: &str, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let val = py_any_to_value(py, value)?;
         set_json_pointer(&mut self.inner.json, pointer, val).map_err(py_err)?;
         Ok(())
@@ -228,7 +232,7 @@ impl Project {
         &mut self,
         py: Python<'_>,
         node: &str,
-        value: &PyAny,
+        value: &Bound<'_, PyAny>,
         input: Option<usize>,
         input_name: Option<&str>,
     ) -> PyResult<()> {
@@ -447,7 +451,7 @@ impl Project {
     }
 
     #[pyo3(signature = (keys, interp=0))]
-    fn add_gradient(&self, py: Python<'_>, keys: &PyAny, interp: i32) -> PyResult<String> {
+    fn add_gradient(&self, py: Python<'_>, keys: &Bound<'_, PyAny>, interp: i32) -> PyResult<String> {
         let value = py_any_to_value(py, keys)?;
         let arr = value.as_array().ok_or_else(|| {
             PyRuntimeError::new_err("keys must be an array of [time, color] pairs")
@@ -488,9 +492,9 @@ impl Project {
     #[pyo3(signature = (node_type))]
     fn list_node_inputs(&self, py: Python<'_>, node_type: &str) -> PyResult<PyObject> {
         let json_str = self.list_node_inputs_json(node_type)?;
-        let json_mod = py.import("json")?;
+        let json_mod = py.import_bound("json")?;
         let loaded = json_mod.call_method1("loads", (json_str,))?;
-        Ok(loaded.into_py(py))
+        Ok(loaded.unbind())
     }
 
     #[pyo3(signature = (node_type))]
@@ -507,9 +511,9 @@ impl Project {
     #[pyo3(signature = (node_type))]
     fn list_node_outputs(&self, py: Python<'_>, node_type: &str) -> PyResult<PyObject> {
         let json_str = self.list_node_outputs_json(node_type)?;
-        let json_mod = py.import("json")?;
+        let json_mod = py.import_bound("json")?;
         let loaded = json_mod.call_method1("loads", (json_str,))?;
-        Ok(loaded.into_py(py))
+        Ok(loaded.unbind())
     }
 
     fn list_node_types_json(&self) -> PyResult<String> {
@@ -521,9 +525,9 @@ impl Project {
 
     fn list_node_types(&self, py: Python<'_>) -> PyResult<PyObject> {
         let json_str = self.list_node_types_json()?;
-        let json_mod = py.import("json")?;
+        let json_mod = py.import_bound("json")?;
         let loaded = json_mod.call_method1("loads", (json_str,))?;
-        Ok(loaded.into_py(py))
+        Ok(loaded.unbind())
     }
 
     fn hue_set_all(&mut self, hue_deg: f64) -> PyResult<usize> {
@@ -545,7 +549,7 @@ impl Project {
 }
 
 #[pymodule]
-fn pxc(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn pxc(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Project>()?;
     Ok(())
 }
