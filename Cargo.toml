@@ -22,3 +22,10 @@ walkdir = "2.5"
 
 [features]
 python = ["pyo3"]
+
+[workspace]
+members = [
+    ".",
+    "crates/pxc-render",
+]
+resolver = "2"
